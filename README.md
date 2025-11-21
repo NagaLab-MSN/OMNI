@@ -11,8 +11,6 @@ Built on **PyTorch**, **Deep Graph Library (DGL)**, and **PyTorch Lightning**, t
 -   **Hybrid Attention Encoder**: The core GNN employs a sophisticated hybrid attention strategy to learn node embeddings:
     -   **Local Neighborhood Attention**: Uses relation-specific Graph Attention (GAT) layers to aggregate information from immediate neighbors.
     -   **Global Graph Attention**: Leverages Random Walk with Restart (RWR) to identify and attend to important, long-range nodes, capturing the global context of each entity.
--   **Clean & Modular Codebase**: The project is organized into distinct modules for data handling, model architecture, and execution, making it easy to understand, maintain, and extend.
--   **Efficient Data Pipeline**: Features a one-time data preprocessing and caching mechanism. Raw CSV files are converted into a graph format and saved to disk for instant loading in subsequent runs.
 
 ## Model Architecture
 
