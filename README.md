@@ -37,8 +37,8 @@ Follow these instructions to set up the project on your local machine.
 
 1.  **Clone the Repository:**
     ```bash
-    git clone https://github.com/your-username/chemical-gene-gnn.git
-    cd chemical-gene-gnn
+    git clone https://github.com/NagaLab-MSN/OMNI.git
+    cd OMNI
     ```
 
 2.  **Create a Virtual Environment:**
