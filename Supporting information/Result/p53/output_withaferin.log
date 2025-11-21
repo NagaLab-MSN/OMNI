@@ -1,0 +1,161 @@
+nohup: ignoring input
+--- Initializing DataModule to load graph artifacts ---
+--- Loading cached graph data for setup ---
+--- Data setup complete ---
+
+--- Loading model from checkpoint: final_model_multi_rel.ckpt ---
+--- Patching the loaded model's encoder at runtime ---
+--- Patch successful ---
+Using device: cuda:0
+
+--- Predicting interactions for Chemical 'C009684' and Gene '2768677' ---
+Updating the model's full feature cache...
+
+Updating full features cache on CPU...
+CPU cache update complete.
+Cache update complete.
+
+==================================================
+           PREDICTION RESULTS
+==================================================
+                     Relation_Type   Probability
+0                decreasessplicing  9.418172e-01
+1         increasesphosphorylation  9.144078e-01
+2         decreasesadpribosylation  7.239761e-01
+3         decreasesphosphorylation  6.309349e-01
+4              increasesexpression  6.119736e-01
+5               affectssumoylation  5.702916e-01
+6    decreasesolinkedglycosylation  5.202604e-01
+7                affectsexpression  4.962371e-01
+8             affectsfarnesylation  4.825451e-01
+9               decreasesacylation  4.644362e-01
+10            increasesprenylation  4.560070e-01
+11         decreasesmyristoylation  3.793023e-01
+12                affectsglycation  3.631182e-01
+13            decreasesprenylation  3.520435e-01
+14               decreasesreaction  3.019174e-01
+15         decreasescarbamoylation  2.911259e-01
+16              decreasesreduction  2.489873e-01
+17             decreasesexpression  2.273113e-01
+18           increaseslocalization  2.208609e-01
+19           increasesribosylation  1.834965e-01
+20                affectsacylation  1.542772e-01
+21            decreasessumoylation  1.137033e-01
+22            decreasesdegradation  1.135375e-01
+23            increasesacetylation  1.025786e-01
+24               affectslipidation  8.382741e-02
+25               increasescleavage  8.348183e-02
+26          affectsphosphorylation  7.077571e-02
+27          increasesglycosylation  6.560218e-02
+28           decreaseslocalization  4.521165e-02
+29               decreasescleavage  2.889875e-02
+30        affectsglutathionylation  2.661298e-02
+31              affectsdegradation  2.281573e-02
+32              increasesabundance  1.952086e-02
+33               affectsalkylation  1.844194e-02
+34   increasesolinkedglycosylation  1.720154e-02
+35     affectsnlinkedglycosylation  1.672976e-02
+36                   affectsimport  1.503624e-02
+37        increasesadpribosylation  1.484554e-02
+38              affectscotreatment  1.454141e-02
+39              decreasestransport  1.267583e-02
+40            increasessumoylation  1.026397e-02
+41   increasesnlinkedglycosylation  9.907926e-03
+42               decreasesactivity  7.881523e-03
+43         decreasespalmitoylation  6.821073e-03
+44            increasesdegradation  5.823134e-03
+45            decreasesnitrosation  4.832113e-03
+46         decreasesubiquitination  3.976207e-03
+47                  affectsfolding  2.984884e-03
+48            decreasesacetylation  2.695436e-03
+49            affectscarboxylation  2.396767e-03
+50         increasespalmitoylation  2.334239e-03
+51                 affectsreaction  2.315707e-03
+52           affectspolymerization  2.298621e-03
+53         decreasespolymerization  2.213721e-03
+54            decreasesmutagenesis  1.739251e-03
+55    decreasesmetabolicprocessing  1.696912e-03
+56                increasesfolding  1.314983e-03
+57    decreasesresponsetosubstance  1.227678e-03
+58             decreaseslipidation  7.853048e-04
+59           affectsubiquitination  7.384595e-04
+60      decreaseschemicalsynthesis  6.850052e-04
+61                 increasesuptake  6.130809e-04
+62                affectssulfation  5.370104e-04
+63          decreasescarboxylation  5.289884e-04
+64          decreasesfarnesylation  5.149964e-04
+65          increasescarboxylation  4.600004e-04
+66          decreasesgeranoylation  3.759138e-04
+67                   affectsuptake  3.679135e-04
+68   decreasesnlinkedglycosylation  3.092118e-04
+69                 affectscleavage  2.950334e-04
+70                affectsstability  2.884582e-04
+71              decreasesglycation  2.589021e-04
+72               increasesreaction  2.417041e-04
+73                  affectsbinding  2.336503e-04
+74             increaseslipidation  1.991955e-04
+75         increasescarbamoylation  1.862716e-04
+76              increasessecretion  1.842766e-04
+77              affectsmethylation  1.388220e-04
+78              decreasessulfation  1.366316e-04
+79             affectslocalization  1.328727e-04
+80    increasesresponsetosubstance  1.102182e-04
+81        affectschemicalsynthesis  9.941536e-05
+82              decreasesstability  9.265843e-05
+83             increasesalkylation  8.466090e-05
+84              increasesacylation  7.170604e-05
+85              decreasesabundance  6.171849e-05
+86                decreasesfolding  5.929397e-05
+87                 decreasesimport  5.802921e-05
+88              increasesstability  5.689152e-05
+89              decreasessecretion  5.610182e-05
+90                affectssecretion  5.114945e-05
+91         increasesubiquitination  4.465577e-05
+92          increasesfarnesylation  4.456388e-05
+93              affectsmutagenesis  3.357572e-05
+94          decreaseshydroxylation  3.029960e-05
+95              increasestransport  3.006798e-05
+96          affectsglucuronidation  2.342456e-05
+97                 decreasesexport  2.295153e-05
+98                 affectssplicing  2.074766e-05
+99            increasesnitrosation  1.670470e-05
+100             decreasesoxidation  1.610777e-05
+101         decreasesglycosylation  1.353490e-05
+102              affectshydrolysis  1.306587e-05
+103               affectsreduction  1.114774e-05
+104           affectshydroxylation  9.371532e-06
+105             increasesglycation  8.231997e-06
+106               affectsoxidation  8.000556e-06
+107            increaseshydrolysis  7.903337e-06
+108       decreasesglucuronidation  7.548543e-06
+109              increasessplicing  7.180616e-06
+110           increasesmutagenesis  5.906300e-06
+111             decreasesamination  5.266273e-06
+112             increasesamination  4.756467e-06
+113                decreasesuptake  4.434003e-06
+114            decreaseshydrolysis  3.907950e-06
+115              increasesactivity  3.544936e-06
+116           affectsglycosylation  3.252667e-06
+117     increasesglutathionylation  1.567010e-06
+118       increasesglucuronidation  1.493244e-06
+119             increasesreduction  1.249911e-06
+120                increasesexport  1.049195e-06
+121             increasessulfation  6.770832e-07
+122            decreasesalkylation  6.229943e-07
+123     increaseschemicalsynthesis  6.107413e-07
+124   increasesmetabolicprocessing  6.062288e-07
+125         increaseshydroxylation  5.255012e-07
+126                increasesimport  4.879779e-07
+127     affectsmetabolicprocessing  4.067092e-07
+128               affectsabundance  2.528945e-07
+129             affectsacetylation  8.722872e-08
+130             increasesoxidation  5.861859e-08
+131                  affectsexport  5.376220e-08
+132                affectsactivity  3.903157e-08
+133     decreasesglutathionylation  1.158852e-08
+134           increasesmethylation  1.120468e-08
+135            decreasesethylation  7.383049e-09
+136     affectsresponsetosubstance  5.717880e-09
+137           decreasesmethylation  2.355281e-09
+138               affectstransport  9.539775e-12
+==================================================
