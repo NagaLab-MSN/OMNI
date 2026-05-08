@@ -10,9 +10,6 @@ from src.model.full_gnn_system import FullGNNSystem
 from src.data.graph_datamodule import GraphDataModule
 from src.model.layers.hetero_rel_gat import HeteroRelGAT
 
-# ==============================================================================
-#  RUNTIME PATCH
-# ==============================================================================
 class PatchedHeteroRelGAT(HeteroRelGAT):
     def forward(self, blocks: List, x_src: Dict[str, torch.Tensor], full_features_for_global:
         Dict[str, torch.Tensor], cached_rwr: Dict[str, Dict[int, List[Tuple[str, int]]]]):
@@ -169,7 +166,6 @@ def main():
     args = parser.parse_args()
 
     print("--- Initializing DataModule to load graph artifacts ---")
-    # Force num_workers to 0 for prediction as it's not needed
     args.num_workers = 0 
     dm = GraphDataModule(args)
     dm.setup()

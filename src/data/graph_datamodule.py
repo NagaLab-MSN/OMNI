@@ -1,7 +1,7 @@
 import os
 import json
 from collections import defaultdict
-from typing import Dict, Optional
+from typing import Dict, Tuple, List, Optional
 
 import pandas as pd
 from tqdm import tqdm
@@ -10,6 +10,99 @@ import dgl
 import dgl.dataloading as dgldl
 import dgl.sampling as dgl_sampling
 import pytorch_lightning as pl
+
+class TypedNegativeSampler(object):
+    def __init__(self, g_full: dgl.DGLHeteroGraph, neg_k: int):
+        self.neg_k = neg_k
+        self.num_dst_nodes: Dict[str, int] = {}
+
+        self.positive_keys: Dict[Tuple[str, str, str], torch.Tensor] = {}
+
+        for etype in g_full.canonical_etypes:
+            src_type, _, dst_type = etype
+            n_dst = g_full.num_nodes(dst_type)
+            self.num_dst_nodes[dst_type] = n_dst
+
+            u, v = g_full.edges(etype=etype)
+            if u.numel() > 0:
+                
+                encoded = u.long() * n_dst + v.long()
+                self.positive_keys[etype] = encoded.sort().values 
+            else:
+                self.positive_keys[etype] = torch.empty(0, dtype=torch.long)
+
+        print(f"[TypedNegativeSampler] Initialised — "
+              f"{len(self.positive_keys)} relation types, neg_k={neg_k}")
+
+    def _has_collision(
+        self,
+        sorted_keys: torch.Tensor,   
+        src: torch.Tensor,           
+        dst: torch.Tensor,           
+        n_dst: int,
+    ) -> torch.Tensor:              
+        if sorted_keys.numel() == 0:
+            return torch.zeros(src.numel(), dtype=torch.bool)
+
+       
+        cand_keys = src.long() * n_dst + dst.long()
+
+        idx = torch.searchsorted(sorted_keys, cand_keys)
+
+        in_bounds = idx < sorted_keys.numel()                   
+        collision = torch.zeros(src.numel(), dtype=torch.bool)
+        if in_bounds.any():
+            collision[in_bounds] = (
+                sorted_keys[idx[in_bounds]] == cand_keys[in_bounds]
+            )
+        return collision
+
+    # ------------------------------------------------------------------
+
+    def __call__(
+        self,
+        g: dgl.DGLHeteroGraph,
+        eids_dict: Dict[Tuple[str, str, str], torch.Tensor],
+    ) -> Dict[Tuple[str, str, str], Tuple[torch.Tensor, torch.Tensor]]:
+
+        result = {}
+        MAX_RETRIES = 10
+
+        for etype, eids in eids_dict.items():
+            src_type, _, dst_type = etype
+            u, v = g.edges(etype=etype)
+            src = u[eids]
+            num_edges = src.numel()
+
+            if num_edges == 0:
+                result[etype] = (torch.empty(0, dtype=torch.long),
+                                 torch.empty(0, dtype=torch.long))
+                continue
+
+            n_dst = self.num_dst_nodes[dst_type]
+            sorted_keys = self.positive_keys.get(
+                etype, torch.empty(0, dtype=torch.long)
+            )
+
+            src_expanded = src.repeat_interleave(self.neg_k)
+            total_neg = num_edges * self.neg_k
+            neg_dst = torch.randint(0, n_dst, (total_neg,), dtype=torch.long)
+
+            for _retry in range(MAX_RETRIES):
+                collision_mask = self._has_collision(
+                    sorted_keys, src_expanded, neg_dst, n_dst
+                )
+                n_collisions = collision_mask.sum().item()
+                if n_collisions == 0:
+                    break
+                neg_dst[collision_mask] = torch.randint(
+                    0, n_dst, (n_collisions,), dtype=torch.long
+                )
+
+            result[etype] = (src_expanded, neg_dst)
+
+        return result
+
 
 class GraphDataModule(pl.LightningDataModule):
     def __init__(self, hparams):
@@ -20,6 +113,8 @@ class GraphDataModule(pl.LightningDataModule):
         self.rwr_train = None
         self.chem_gene_actions = []
         self.num_workers = hparams.num_workers
+        
+        self._typed_neg_sampler: Optional[TypedNegativeSampler] = None
 
     def prepare_data(self):
         if os.path.exists(self.hparams.cache_graph) and not self.hparams.force_reload:
@@ -52,15 +147,32 @@ class GraphDataModule(pl.LightningDataModule):
         with open(self.hparams.cache_actions, 'r') as f:
             self.chem_gene_actions = json.load(f)
 
-        self.exclude_eids_val = {etype: eids for etype, eids in self.splits['val'].items() if eids.numel() > 0}
-        self.exclude_eids_val.update({etype: eids for etype, eids in self.splits['test'].items() if eids.numel() > 0})
-        self.exclude_eids_test = self.exclude_eids_val
+        exclude = {}
+        for etype, eids in self.splits['val'].items():
+            if eids.numel() > 0:
+                exclude[etype] = eids
+        for etype, eids in self.splits['test'].items():
+            if eids.numel() > 0:
+                if etype in exclude:
+                    exclude[etype] = torch.cat([exclude[etype], eids])
+                else:
+                    exclude[etype] = eids
+        self.exclude_eids_val = exclude
+
+        self.exclude_eids_test = dict(self.exclude_eids_val)
+
+        if self._typed_neg_sampler is None:
+            print("--- Building TypedNegativeSampler (one-time cost) ---")
+            self._typed_neg_sampler = TypedNegativeSampler(
+                self.g_full, self.hparams.neg_k
+            )
+
         print(f"--- Data setup complete ---")
 
     def _shard_eids(self, eids_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         if not hasattr(self, 'trainer'):
             return eids_dict
-            
+
         world_size = self.trainer.world_size
         rank = self.trainer.global_rank
         sharded_eids = {}
@@ -74,10 +186,11 @@ class GraphDataModule(pl.LightningDataModule):
 
     def _build_loader(self, g, eids_dict, shuffle, num_workers, exclude_eids=None):
         eids_dict_filtered = {et: eids for et, eids in eids_dict.items() if eids.numel() > 0}
+
         sampler = dgldl.as_edge_prediction_sampler(
             dgldl.NeighborSampler([int(f) for f in self.hparams.fanouts.split(',')]),
             exclude=exclude_eids,
-            negative_sampler=dgldl.negative_sampler.Uniform(self.hparams.neg_k)
+            negative_sampler=self._typed_neg_sampler,
         )
         return dgldl.DataLoader(
             g, eids_dict_filtered, sampler,
@@ -97,7 +210,7 @@ class GraphDataModule(pl.LightningDataModule):
     def test_dataloader(self):
         test_eids_sharded = self._shard_eids(self.splits['test'])
         return self._build_loader(self.g_full, test_eids_sharded, False, self.num_workers, exclude_eids=self.exclude_eids_test)
-        
+
     def predict_dataloader(self):
         test_eids_dict = {
             et: eids for et, eids in self.splits['test'].items()
@@ -149,7 +262,7 @@ class GraphDataModule(pl.LightningDataModule):
             for chunk in reader:
                 if src_col in chunk: id_sets[src_type].update(chunk[src_col].dropna().astype(str))
                 if dst_col in chunk: id_sets[dst_type].update(chunk[dst_col].dropna().astype(str))
-        
+
         id_to_idx = {ntype: {id_val: i for i, id_val in enumerate(sorted(ids))} for ntype, ids in id_sets.items()}
         for ntype, mapping in id_to_idx.items(): print(f"Found {len(mapping)} unique nodes for type: '{ntype}'")
         edge_data = defaultdict(list)
@@ -160,19 +273,19 @@ class GraphDataModule(pl.LightningDataModule):
             for chunk in tqdm(reader, desc="Building Chemical-Gene Edges"):
                 df_subset = chunk.dropna()
                 df_subset['action'] = df_subset['InteractionActions'].str.split('|').str[0].str.lower().str.replace('[^a-z0-9]', '', regex=True)
-                
+
                 src_indices = df_subset['ChemicalID'].astype(str).map(id_to_idx['chemical'])
                 tgt_indices = df_subset['GeneID'].astype(str).map(id_to_idx['gene'])
-                
+
                 valid_pairs = pd.concat([src_indices, tgt_indices, df_subset['action']], axis=1).dropna()
                 valid_pairs.columns = ['src', 'tgt', 'action']
-                
+
                 for action_name, group in valid_pairs.groupby('action'):
                     if not action_name: continue
                     self.chem_gene_actions.append(action_name)
                     canonical_etype = ('chemical', action_name, 'gene')
                     edge_data[canonical_etype].extend(zip(group['src'].astype(int), group['tgt'].astype(int)))
-        
+
         self.chem_gene_actions = sorted(list(set(self.chem_gene_actions)))
         print(f"Created {len(self.chem_gene_actions)} distinct chemical-gene relation types.")
         edge_mappings = [
@@ -224,7 +337,7 @@ class GraphDataModule(pl.LightningDataModule):
                 test_eids[etype] = eids[perm[n_train + n_val:]]
             else:
                 train_eids[etype] = eids
-        
+
         print("--- FINAL DATA SPLIT SUMMARY ---")
         print(f"Total Edges in Full Graph: {g.num_edges():,}")
         print(f"Total Edges in Training Set: {sum(e.numel() for e in train_eids.values()):,}")
