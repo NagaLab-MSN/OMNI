@@ -1,134 +1,168 @@
-# Chemical-Gene Interaction Predictor (GNN)
+# OMNI — Chemical–Gene Interaction Predictor
 
-This repository provides a complete framework for training and using a Graph Neural Network (GNN) to predict specific interaction types between chemicals and genes. The model is designed to work with a complex, heterogeneous biological graph, integrating various entities like diseases and pathways to learn powerful, context-aware node representations.
+> A Graph Neural Network framework for classifying interaction types between chemicals and genes across a heterogeneous biological knowledge graph.
 
-Built on **PyTorch**, **Deep Graph Library (DGL)**, and **PyTorch Lightning**, this project is designed for reproducibility, modularity, and high performance.
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=flat-square)](https://python.org)
+[![PyTorch](https://img.shields.io/badge/PyTorch-Lightning-red?style=flat-square)](https://www.pytorchlightning.ai/)
+[![DGL](https://img.shields.io/badge/DGL-Deep%20Graph%20Library-orange?style=flat-square)](https://www.dgl.ai/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+
+---
+
+## Overview
+
+**OMNI** predicts how a given chemical interacts with a gene — not just *whether* an interaction exists, but *what kind*. Given a chemical–gene pair, the model outputs ranked probabilities across a comprehensive set of interaction categories (e.g., `increases^expression`, `decreases^activity`).
+
+The model learns from a rich heterogeneous biological graph that integrates chemicals, genes, diseases, and pathways, capturing both local neighborhood structure and long-range global dependencies.
+
+---
 
 ## Key Features
 
--   **Multi-Relation Classification**: Instead of simple link prediction, this model classifies a chemical-gene interaction into one of many specific categories (e.g., `increases^expression`, `decreases^activity`).
--   **Heterogeneous Graph Model**: Seamlessly integrates different biological entities (chemicals, genes, diseases, pathways) and the relationships between them.
--   **Hybrid Attention Encoder**: The core GNN employs a sophisticated hybrid attention strategy to learn node embeddings:
-    -   **Local Neighborhood Attention**: Uses relation-specific Graph Attention (GAT) layers to aggregate information from immediate neighbors.
-    -   **Global Graph Attention**: Leverages Random Walk with Restart (RWR) to identify and attend to important, long-range nodes, capturing the global context of each entity.
+| Feature | Description |
+|---|---|
+| **Multi-Relation Classification** | Predicts specific interaction type, not just binary link presence |
+| **Heterogeneous Graph** | Integrates chemicals, genes, diseases, and pathways in a single unified graph |
+| **Hybrid Attention Encoder** | Combines local GAT-based attention with global RWR-based long-range context |
+| **Reproducible Pipeline** | Built on PyTorch Lightning for clean training, checkpointing, and evaluation |
+
+---
 
 ## Model Architecture
 
-The model is comprised of three primary stages:
+The model consists of three stages:
 
-1.  **Node Embedding Layer**: Assigns a unique, trainable feature vector (embedding) to every node in the graph.
-2.  **GNN Encoder (`HeteroRelGAT`)**: This is the core of the model. It generates a final, context-rich embedding for each node by combining two distinct representations:
-    -   A **local representation** is learned by aggregating features from direct neighbors, with separate attention weights for each type of relationship.
-    -   A **global representation** is learned by attending over a wider, more influential neighborhood identified by RWR, allowing the model to incorporate long-range dependencies.
-3.  **Edge Decoder**: A prediction head that takes the final embeddings of a chemical and a gene. It contains a separate MLP for each possible interaction type, which outputs a score indicating the likelihood of that specific interaction.
+### 1. Node Embedding Layer
+Assigns a unique, trainable feature vector to every node in the graph.
 
+### 2. GNN Encoder — `HeteroRelGAT`
+The core of the model. Produces context-rich embeddings by combining two complementary representations:
+
+- **Local Representation** — Relation-specific Graph Attention (GAT) layers aggregate features from direct neighbors, with separate attention weights per relationship type.
+- **Global Representation** — Random Walk with Restart (RWR) identifies influential long-range nodes; a global attention mechanism incorporates these into each node's embedding.
+
+### 3. Edge Decoder
+A prediction head that takes a chemical embedding and a gene embedding and applies a dedicated MLP for each possible interaction type, outputting a ranked score distribution.
+
+---
 
 ## Getting Started
 
-Follow these instructions to set up the project on your local machine.
-
 ### Prerequisites
 
--   Python 3.8+
--   `conda` or `venv` for environment management
--   A CUDA-enabled GPU is highly recommended for training.
+- Python 3.8+
+- `conda` or `venv` for environment management
+- A CUDA-enabled GPU is strongly recommended for training
 
 ### Installation
 
-1.  **Clone the Repository:**
-    ```bash
-    git clone https://github.com/NagaLab-MSN/OMNI.git
-    cd OMNI
-    ```
+**1. Clone the repository:**
+```bash
+git clone https://github.com/NagaLab-MSN/OMNI.git
+cd OMNI
+```
 
-2.  **Create a Virtual Environment:**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows, use: venv\Scripts\activate
-    ```
+**2. Create and activate a virtual environment:**
+```bash
+python -m venv venv
+source venv/bin/activate        # Linux / macOS
+# venv\Scripts\activate         # Windows
+```
 
-3.  **Install PyTorch:**
-    Install a version of PyTorch compatible with your CUDA toolkit. Follow the official instructions here: [https://pytorch.org/get-started/locally/](https://pytorch.org/get-started/locally/)
+**3. Install PyTorch** (select the build matching your CUDA version):
+```
+https://pytorch.org/get-started/locally/
+```
 
-4.  **Install All Other Dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+**4. Install remaining dependencies:**
+```bash
+pip install -r requirements.txt
+```
 
-## How to Use
+---
 
-The project workflow is split into two main parts: training a model and then using that model for prediction.
+## Usage
 
-### 1. Data Setup
+### Step 1 — Prepare Your Data
 
-You must provide your own data in CSV format. Place all the required source files (listed in the **Data Format** section below) into a single directory. The first time you run the training script, it will automatically process these files, build the graph, and create cached artifacts for fast re-loading.
+Place all required CSV files (see [Data Format](#data-format) below) into a single directory. On the first run, the training script will automatically preprocess the files, build the graph, and cache artifacts for fast subsequent loads.
 
-### 2. Training a New Model
-
-To train the GNN, run the `main_train.py` script. The only mandatory argument is the path to your data directory.
+### Step 2 — Train a Model
 
 ```bash
 python main_train.py --base_data_path /path/to/your/data_directory
 ```
 
--   This command will preprocess the data (if needed), execute the training and validation loops, and save two model checkpoints:
-    -   `best-model-multi-rel.ckpt`: The checkpoint with the best validation AUROC score.
-    -   `final_model_multi_rel.ckpt`: The checkpoint from the very last training epoch.
--   To see all configurable hyperparameters (e.g., embedding dimensions, learning rate, epochs), run `python main_train.py --help`.
+This will:
+- Preprocess raw data and build the heterogeneous graph (first run only)
+- Run training and validation loops
+- Save two checkpoints:
+  - `best-model-multi-rel.ckpt` — highest validation AUROC
+  - `final_model_multi_rel.ckpt` — final epoch weights
 
-### 3. Predicting Interactions for a Single Pair
+To view all configurable hyperparameters:
+```bash
+python main_train.py --help
+```
 
-After training, you can use the `main_predict_manual.py` script to get a ranked list of all possible interaction types for any given chemical-gene pair.
+### Step 3 — Predict for a Chemical–Gene Pair
 
 ```bash
 python main_predict_manual.py \
-    --chemical_id "D000041" \
-    --gene_id "1017" \
-    --model_checkpoint final_model_multi_rel.ckpt \
-    --base_data_path /path/to/your/data_directory
+    --chemical_id  "D000041" \
+    --gene_id      "1017" \
+    --model_checkpoint  final_model_multi_rel.ckpt \
+    --base_data_path    /path/to/your/data_directory
 ```
 
-**Required Arguments:**
+**Arguments:**
 
-| Argument             | Description                                                                                         |
-| -------------------- | --------------------------------------------------------------------------------------------------- |
-| `--chemical_id`      | The unique ID of the chemical you want to query.                                                    |
-| `--gene_id`          | The unique ID of the gene you want to query.                                                        |
-| `--model_checkpoint` | Path to the trained `.ckpt` model file you want to use for inference.                               |
-| `--base_data_path`   | Path to the original data directory. This is essential for loading the graph structure and node IDs. |
+| Argument | Required | Description |
+|---|---|---|
+| `--chemical_id` | ✅ | Unique identifier of the query chemical |
+| `--gene_id` | ✅ | Unique identifier of the query gene |
+| `--model_checkpoint` | ✅ | Path to the trained `.ckpt` file |
+| `--base_data_path` | ✅ | Path to the data directory (needed to load graph structure and node IDs) |
 
+---
 
 ## Data Format
 
-The data processing pipeline expects the following CSV files to be present in the directory specified by `--base_data_path`. The column names listed here are required.
+All files must be CSV and placed in the directory specified by `--base_data_path`. The column names below are required exactly as listed.
 
-| File Name                        | Required Columns                             |
-| -------------------------------- | -------------------------------------------- |
-| `CTD_chem_gene_ixns.csv`         | `ChemicalID`, `GeneID`, `InteractionActions` |
-| `chemical_chemical_noNaN.csv`    | `Chemical1_name1`, `Chemical2_name2`         |
-| `CTD_chemicals_diseases.csv`     | `ChemicalID`, `DiseaseID`                    |
-| `CTD_chem_pathways_enriched.csv` | `ChemicalID`, `PathwayID`                    |
-| `CTD_genes_diseases.csv`         | `GeneID`, `DiseaseID`                        |
-| `CTD_genes_pathways.csv`         | `GeneID`, `PathwayID`                        |
-| `gene_gene.csv`                  | `Gene 1`, `Gene 2`                           |
+| File | Required Columns |
+|---|---|
+| `CTD_chem_gene_ixns.csv` | `ChemicalID`, `GeneID`, `InteractionActions` |
+| `chemical_chemical_noNaN.csv` | `Chemical1_name1`, `Chemical2_name2` |
+| `CTD_chemicals_diseases.csv` | `ChemicalID`, `DiseaseID` |
+| `CTD_chem_pathways_enriched.csv` | `ChemicalID`, `PathwayID` |
+| `CTD_genes_diseases.csv` | `GeneID`, `DiseaseID` |
+| `CTD_genes_pathways.csv` | `GeneID`, `PathwayID` |
+| `gene_gene.csv` | `Gene 1`, `Gene 2` |
+
+---
 
 ## Results
-The result folder contains the calculatated results with the Code
 
-Table_S1 Results for the targets and drugs obtained from pan-cancer proteogenomics study
-All other folder contains a specific gene with a specific chemicals with interaction probablities
-Note: In case of VDR, the prediction probablities were calculated for almost all the chemicals
+The `results/` folder contains pre-computed outputs:
 
+- **`Table_S1`** — Targets and drugs from the pan-cancer proteogenomics study, with predicted interaction scores.
+- **Gene-specific folders** — Each contains a specific gene paired with a set of chemicals and their predicted interaction probabilities.
+- **VDR** — Prediction probabilities calculated across nearly all chemicals in the dataset.
+
+---
 
 ## License
 
-This project is distributed under the MIT License. See the `LICENSE` file for more information.
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
+
+---
+
 
 ## Acknowledgements
 
-This implementation is made possible by the excellent work of the teams behind these open-source libraries:
--   [PyTorch](https://pytorch.org/)
--   [Deep Graph Library (DGL)](https://www.dgl.ai/)
--   [PyTorch Lightning](https://www.pytorchlightning.ai/)
+This work builds on the following open-source libraries:
 
-
+- [PyTorch](https://pytorch.org/) — Core deep learning framework
+- [Deep Graph Library (DGL)](https://www.dgl.ai/) — Graph neural network building blocks
+- [PyTorch Lightning](https://www.pytorchlightning.ai/) — Training infrastructure and checkpointing
